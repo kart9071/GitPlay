@@ -1,0 +1,12 @@
+server:
+  port: 8081  # Set the server port to 8081
+
+spring:
+  application:
+    name: GitPlayBackend  # Set the application name (can be any name)
+
+logging:
+  level:
+    org.springframework.web: DEBUG
+    org.springframework.boot: DEBUG
+
