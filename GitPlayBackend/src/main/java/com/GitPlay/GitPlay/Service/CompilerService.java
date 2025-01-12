@@ -2,10 +2,7 @@ package com.GitPlay.GitPlay.Service;
 
 import org.springframework.stereotype.Service;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.InputStreamReader;
+import java.io.*;
 
 @Service
 public class CompilerService {
@@ -16,15 +13,7 @@ public class CompilerService {
         String tempDir = System.getProperty("java.io.tmpdir");
         switch (language) {
             case "python":
-                filename = tempDir + "temp_script.py";
-                try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename))) {
-                    writer.write(code);
-                }
-                if (System.getProperty("os.name").toLowerCase().contains("win")) {
-                    command = "python " + filename;
-                } else {
-                    command = "python3 " + filename;
-                }
+                command=python_compiler(filename,tempDir,command,code);
                 break;
             case "javascript":
                 command = "node -e \"" + code.replace("\"", "\\\"") + "\"";
@@ -70,5 +59,20 @@ public class CompilerService {
 
         return output.toString();
     }
+
+    private String python_compiler(String filename,String tempDir,String command,String code) throws IOException {
+        filename = tempDir + "temp_script.py";
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename))) {
+            writer.write(code);
+        }
+        if (System.getProperty("os.name").toLowerCase().contains("win")) {
+            command = "python " + filename;
+        } else {
+            command = "python3 " + filename;
+        }
+        return command;
+    }
+
+
 
 }

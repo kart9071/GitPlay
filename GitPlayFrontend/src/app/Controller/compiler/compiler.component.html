@@ -1,0 +1,18 @@
+<div class="container mt-5 dark-theme">
+  <h1 class="text-center mb-4">{{ title }}</h1>
+
+  <!-- Language Selector -->
+  <div class="mb-3">
+    <label for="language" class="form-label">Choose a Language:</label>
+    <select id="language" class="form-select" [(ngModel)]="selectedLanguage">
+      <option *ngFor="let lang of languages" [value]="lang.value">{{ lang.name }}</option>
+    </select>
+  </div>
+
+  <!-- Code Editor -->
+  <div id="editor" style="height: 400px; width: 100%; border: 1px solid #ccc;">
+  </div>
+
+  <!-- Compile Button -->
+  <button class="btn btn-primary mt-3" (click)="compileCode()">Run Code</button>
+</div>

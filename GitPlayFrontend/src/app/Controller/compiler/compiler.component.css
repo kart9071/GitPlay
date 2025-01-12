@@ -1,0 +1,16 @@
+/* Set the white color for the cursor */
+.ace_cursor {
+    border-left: 2px solid white !important; /* White cursor */
+  }
+  
+  /* Make the cursor blink */
+  .ace_cursor {
+    animation: blink-caret 1s step-end infinite;
+  }
+  
+  @keyframes blink-caret {
+    50% {
+      border-color: transparent;
+    }
+  }
+  
