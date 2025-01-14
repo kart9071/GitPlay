@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  multi-lang-service:
+    build:
+      context: .
+    container_name: multi-lang-container
+    image: multi-lang-env:latest
+    stdin_open: true
+    tty: true
+    ports:
+      - "5000:5000"

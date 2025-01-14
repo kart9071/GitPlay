@@ -1,78 +1,91 @@
 package com.GitPlay.GitPlay.Service;
-
 import org.springframework.stereotype.Service;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class CompilerService {
 
     public String executeCode(String language, String code) throws Exception {
-        String command="";
         String filename = "";
-        String tempDir = System.getProperty("java.io.tmpdir");
+        String containerName = "multi-lang-container"; // Container name defined in docker-compose.yml
+        String command;
+
+        // Create a temp file in the host system
+        File tempFile = File.createTempFile("temp_script", getFileExtension(language));
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(tempFile))) {
+            writer.write(code);
+        }
+
+        // Copy the file into the Docker container
+        executeCommand("docker cp " + tempFile.getAbsolutePath() + " " + containerName + ":/workspace/" + tempFile.getName());
+
+        // Determine the execution command based on the language
         switch (language) {
             case "python":
-                command=python_compiler(filename,tempDir,command,code);
+                command = "python3 /workspace/" + tempFile.getName();
                 break;
             case "javascript":
-                command = "node -e \"" + code.replace("\"", "\\\"") + "\"";
+                command = "node /workspace/" + tempFile.getName();
                 break;
             case "java":
-                // Save code to a temporary file and compile it
-                command = "java -cp /tmp/ YourClassName";
+                command = "javac /workspace/" + tempFile.getName() + " && java -cp /workspace/ " + tempFile.getName().replace(".java", "");
                 break;
             case "cpp":
-                // Save code to a temporary file and compile it
-                command = "g++ /tmp/temp.cpp -o /tmp/temp && /tmp/temp";
+                command = "g++ /workspace/" + tempFile.getName() + " -o /workspace/temp && /workspace/temp";
                 break;
             default:
                 throw new IllegalArgumentException("Unsupported language: " + language);
         }
-        Process process = Runtime.getRuntime().exec(command);
-        BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+
+        // Execute the command inside the container
+        String output = executeCommand("docker exec " + containerName + " bash -c \"" + command + "\"");
+
+        // Delete the temporary file after execution
+        Files.deleteIfExists(Paths.get(tempFile.getAbsolutePath()));
+
+        return output;
+    }
+
+    private String executeCommand(String command) throws IOException, InterruptedException {
+        Process process = new ProcessBuilder(command.split(" ")).start();
         StringBuilder output = new StringBuilder();
-        String line;
-        while ((line = reader.readLine()) != null) {
-            output.append(line).append("\n");
+
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                output.append(line).append("\n");
+            }
         }
 
-        // Capture errors (stderr)
-        BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
-        StringBuilder errorOutput = new StringBuilder();
-        String errorLine;
-        while ((errorLine = errorReader.readLine()) != null) {
-            errorOutput.append(errorLine).append("\n");
+        // Wait for the process to complete
+        if (!process.waitFor(30, TimeUnit.SECONDS)) {
+            process.destroy();
+            throw new RuntimeException("Command timeout");
         }
 
-        // Wait for the process to finish
-        int exitCode = process.waitFor();
-        if (exitCode != 0) {
-            // If there's an error in execution, throw an exception
-            throw new RuntimeException("Execution failed. Error: " + errorOutput.toString());
-        }
-
-        // If there is error output, throw it as an exception
-        if (errorOutput.length() > 0) {
-            throw new RuntimeException("Execution error: " + errorOutput.toString());
+        if (process.exitValue() != 0) {
+            throw new RuntimeException("Command failed: " + output.toString());
         }
 
         return output.toString();
     }
 
-    private String python_compiler(String filename,String tempDir,String command,String code) throws IOException {
-        filename = tempDir + "temp_script.py";
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename))) {
-            writer.write(code);
+    private String getFileExtension(String language) {
+        switch (language.toLowerCase()) {
+            case "python":
+                return ".py";
+            case "javascript":
+                return ".js";
+            case "java":
+                return ".java";
+            case "cpp":
+                return ".cpp";
+            default:
+                throw new IllegalArgumentException("Unsupported language: " + language);
         }
-        if (System.getProperty("os.name").toLowerCase().contains("win")) {
-            command = "python " + filename;
-        } else {
-            command = "python3 " + filename;
-        }
-        return command;
     }
-
-
-
 }
