@@ -41,7 +41,7 @@ export class CompilerComponent {
       const code = this.editor.getValue();
       const payload = { code, language: this.selectedLanguage };
   
-      this.http.post('http://localhost:8081/compile', payload).subscribe({
+      this.http.post('http://localhost:8081/api/execute', payload).subscribe({
         next: (response) => console.log('Output:', response),
         error: (err) => console.error('Error:', err),
       });

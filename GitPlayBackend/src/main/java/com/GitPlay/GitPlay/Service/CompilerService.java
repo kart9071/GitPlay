@@ -1,91 +1,44 @@
 package com.GitPlay.GitPlay.Service;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponents;
+import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.http.*;
 
-import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.concurrent.TimeUnit;
+import java.util.HashMap;
+import java.util.Map;
+
 
 @Service
 public class CompilerService {
+    @Value("${flask.api.url}")
+    private String CompileCodeServiceUrl;
+
+    private final RestTemplate restTemplate;
+
+    public CompilerService(RestTemplate restTemplate){
+        this.restTemplate=restTemplate;
+    }
 
     public String executeCode(String language, String code) throws Exception {
-        String filename = "";
-        String containerName = "multi-lang-container"; // Container name defined in docker-compose.yml
-        String command;
+        RestTemplate restTemplate = new RestTemplate();
+        String flaskUrl = "http://localhost:5000/execute";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
 
-        // Create a temp file in the host system
-        File tempFile = File.createTempFile("temp_script", getFileExtension(language));
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(tempFile))) {
-            writer.write(code);
-        }
+        Map<String, String> payload = new HashMap<>();
+        payload.put("language", language);
+        payload.put("code", code);
 
-        // Copy the file into the Docker container
-        executeCommand("docker cp " + tempFile.getAbsolutePath() + " " + containerName + ":/workspace/" + tempFile.getName());
-
-        // Determine the execution command based on the language
-        switch (language) {
-            case "python":
-                command = "python3 /workspace/" + tempFile.getName();
-                break;
-            case "javascript":
-                command = "node /workspace/" + tempFile.getName();
-                break;
-            case "java":
-                command = "javac /workspace/" + tempFile.getName() + " && java -cp /workspace/ " + tempFile.getName().replace(".java", "");
-                break;
-            case "cpp":
-                command = "g++ /workspace/" + tempFile.getName() + " -o /workspace/temp && /workspace/temp";
-                break;
-            default:
-                throw new IllegalArgumentException("Unsupported language: " + language);
-        }
-
-        // Execute the command inside the container
-        String output = executeCommand("docker exec " + containerName + " bash -c \"" + command + "\"");
-
-        // Delete the temporary file after execution
-        Files.deleteIfExists(Paths.get(tempFile.getAbsolutePath()));
-
-        return output;
-    }
-
-    private String executeCommand(String command) throws IOException, InterruptedException {
-        Process process = new ProcessBuilder(command.split(" ")).start();
-        StringBuilder output = new StringBuilder();
-
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                output.append(line).append("\n");
-            }
-        }
-
-        // Wait for the process to complete
-        if (!process.waitFor(30, TimeUnit.SECONDS)) {
-            process.destroy();
-            throw new RuntimeException("Command timeout");
-        }
-
-        if (process.exitValue() != 0) {
-            throw new RuntimeException("Command failed: " + output.toString());
-        }
-
-        return output.toString();
-    }
-
-    private String getFileExtension(String language) {
-        switch (language.toLowerCase()) {
-            case "python":
-                return ".py";
-            case "javascript":
-                return ".js";
-            case "java":
-                return ".java";
-            case "cpp":
-                return ".cpp";
-            default:
-                throw new IllegalArgumentException("Unsupported language: " + language);
+        HttpEntity<Map<String, String>> request = new HttpEntity<>(payload, headers);
+        try {
+            ResponseEntity<Map> response = restTemplate.postForEntity(flaskUrl, request, Map.class);
+            return response.getBody().get("output").toString();
+        } catch (HttpClientErrorException e) {
+            throw new Exception("Error from Flask service: " + e.getResponseBodyAsString());
         }
     }
+
 }

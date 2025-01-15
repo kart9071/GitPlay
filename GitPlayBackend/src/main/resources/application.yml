@@ -10,3 +10,7 @@ logging:
     org.springframework.web: DEBUG
     org.springframework.boot: DEBUG
 
+flask:
+  api:
+    url: http://localhost:5000
+

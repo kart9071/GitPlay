@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
 
 @RestController
-@RequestMapping("/compile")
+@RequestMapping("/api")
 public class CompilerController {
     private final CompilerService compilerService;
 
@@ -17,7 +17,7 @@ public class CompilerController {
     }
 
 
-    @PostMapping
+    @PostMapping("/execute")
     public ResponseEntity<CompilerResponse> compileCode(@RequestBody CompileRequest request) {
         try {
             // Use the autowired service here
